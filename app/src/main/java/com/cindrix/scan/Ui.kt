@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -49,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -63,12 +66,16 @@ import java.time.ZoneOffset
 
 @Composable
 fun BrandHeader(subtitle: String) {
-    Column {
-        Row {
-            Text("CINDRIX ", fontFamily = HeadingFont, fontSize = 26.sp, color = MaterialTheme.colorScheme.onBackground)
-            Text("SCAN", fontFamily = HeadingFont, fontSize = 26.sp, color = MaterialTheme.colorScheme.primary)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Image(painterResource(R.drawable.scan_logo), contentDescription = null, modifier = Modifier.size(44.dp))
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Row {
+                Text("CINDRIX ", fontFamily = HeadingFont, fontSize = 26.sp, color = MaterialTheme.colorScheme.onBackground)
+                Text("SCAN", fontFamily = HeadingFont, fontSize = 26.sp, color = MaterialTheme.colorScheme.primary)
+            }
+            Text(subtitle, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text(subtitle, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

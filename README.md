@@ -1,3 +1,5 @@
+<p align="center"><img src="design/logo/cindrix-scan-wordmark-on-dark.png" alt="Cindrix Scan" width="520"></p>
+
 # Cindrix-Scan
 
 A barcode scanner that adds your supplies to the Cindrix Ops inventory. Scan a can or box, set the quantity and use-by date, and send the batch to Ops.
@@ -6,7 +8,8 @@ A barcode scanner that adds your supplies to the Cindrix Ops inventory. Scan a c
 |---|---|
 | Android app ID | `com.cindrix.scan` |
 | Platform | Android |
-| Status | First version builds and passes its tests. Not yet tested on a phone. |
+| Version | 0.3.0 |
+| Status | Builds and passes its tests. Not yet tested on a phone. |
 
 ## What it is
 

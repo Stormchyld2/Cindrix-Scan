@@ -70,6 +70,11 @@ Each batch line carries:
 - **Units:** a fixed list (ea, can, jar, bottle, bag, box, pack, lb, oz, kg, g, L, gal).
 - **Categories:** a fixed starter list (Food, Water, Medical, Hygiene, Fuel, Tools, Power, Other). These need matching to the categories Ops uses.
 - **Duplicates:** scanning the same barcode with the same unit, use-by date and location adds to the existing line.
+- **Feedback:** a successful scan beeps and vibrates. Both can be switched off in Settings; the beep follows the phone's silent mode.
+- **Fast mode:** off by default. For a barcode already in the catalog it shows a small popup (quantity, use-by chips, ADD / ADD and another date / EDIT ALL / CANCEL) instead of the full form. Unknown barcodes and manual entry always use the full form.
+- **Quantity:** one line per purchase, so several identical items bought together are one entry with one use-by date.
+- **Look:** AirLink palette and heading font, with its own logo ("Flame in the frame", sources in `design/logo/`).
+- **File name:** `CindrixScan-<version>-android.apk`.
 - **Signing:** a stable keystore is committed so builds install over each other. It is public. Real release secrets can replace it without code changes.
 
 ## 9. Open questions
