@@ -12,8 +12,8 @@ android {
         applicationId = "com.cindrix.scan"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.4.1"
     }
 
     // Signing: if the build provides a release keystore (GitHub Actions secrets), use it.

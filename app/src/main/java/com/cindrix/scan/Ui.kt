@@ -566,7 +566,7 @@ fun SettingsScreen(state: AppState, onPickFolder: () -> Unit, onBack: () -> Unit
     }
     val folder = state.folderUri
     val folderLabel = if (folder == null) {
-        "Not chosen yet"
+        if (Exporter.canUseDefaultFolder()) Exporter.DEFAULT_PATH + "  (made for you)" else "Not chosen yet"
     } else {
         (Uri.parse(folder).lastPathSegment ?: folder).replace(':', '/')
     }
@@ -609,11 +609,14 @@ fun SettingsScreen(state: AppState, onPickFolder: () -> Unit, onBack: () -> Unit
         SectionLabel("CINDRIX FOLDER")
         Text(folderLabel)
         Text(
-            "Pick the folder Cindrix Ops reads (its user folder). Scan puts finished lists in inbox/inventory inside it. Until a folder is set, lists wait safely in the outbox.",
+            "Finished lists go here on their own, nothing to set up. Cindrix AirLink or a file manager can pick them up from this folder. Only choose a different folder if Ops needs it somewhere else (for example its user folder). Until a list is delivered it waits safely in the outbox.",
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Btn("CHOOSE FOLDER", onPickFolder, Modifier.fillMaxWidth())
+        Btn(if (Exporter.canUseDefaultFolder()) "CHOOSE A DIFFERENT FOLDER" else "CHOOSE FOLDER", onPickFolder, Modifier.fillMaxWidth(), outlined = Exporter.canUseDefaultFolder())
+        if (folder != null && Exporter.canUseDefaultFolder()) {
+            Btn("GO BACK TO THE AUTOMATIC FOLDER", { state.setFolder(null) }, Modifier.fillMaxWidth(), outlined = true)
+        }
 
         Btn("BACK", onBack, Modifier.fillMaxWidth(), outlined = true)
         Text(

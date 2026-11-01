@@ -3,6 +3,9 @@ package com.cindrix.scan
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
+import android.content.ContentValues
 import androidx.core.content.FileProvider
 import androidx.documentfile.provider.DocumentFile
 import java.io.File
@@ -29,6 +32,38 @@ object Exporter {
                 ?: return Result.failure(Exception("Could not open the file for writing"))
             out.use { it.write(text.toByteArray(Charsets.UTF_8)) }
             Result.success(file.name ?: name)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /** True when the phone can make the default folder with no questions asked (Android 10 and newer). */
+    fun canUseDefaultFolder(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+
+    const val DEFAULT_PATH = "Documents/Cindrix/inbox/inventory"
+
+    /** Writes into Documents/Cindrix/inbox/inventory, creating the folders. No folder picking needed. */
+    fun saveToDefault(context: Context, name: String, text: String): Result<String> {
+        if (!canUseDefaultFolder()) return Result.failure(Exception("This phone needs a folder chosen in Settings"))
+        return try {
+            val resolver = context.contentResolver
+            val collection = MediaStore.Files.getContentUri("external")
+            // Replace an earlier copy of the same file that this app made.
+            resolver.delete(
+                collection,
+                MediaStore.MediaColumns.DISPLAY_NAME + "=? AND " + MediaStore.MediaColumns.RELATIVE_PATH + "=?",
+                arrayOf(name, "$DEFAULT_PATH/"),
+            )
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+                put(MediaStore.MediaColumns.MIME_TYPE, "text/csv")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "$DEFAULT_PATH/")
+            }
+            val uri = resolver.insert(collection, values)
+                ?: return Result.failure(Exception("Could not create the file in Documents/Cindrix"))
+            resolver.openOutputStream(uri)?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                ?: return Result.failure(Exception("Could not open the file for writing"))
+            Result.success(name)
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -78,6 +78,7 @@ Each batch line carries:
 - **Add or take out:** scanning a known barcode always opens a small popup with ADD STOCK / TAKE OUT and a quantity. Take-out lines go in the file with `action=remove`. Fast mode only decides whether the use-by date starts as "same as last time".
 - **File format v2:** adds an `action` column (`add` or `remove`) after `scan_id`. Ops still reads v1.
 - **Outbox:** SEND TO OPS saves the batch as a file in the app's outbox and empties the batch, so nothing is lost. Files stay there until written into the Ops folder (`inbox/inventory/` inside the folder picked in Settings). A button also hands a file to Cindrix AirLink directly when it is installed. Ops holds the file in its own inbox until the person accepts it (Ops docs/39).
+- **Automatic folder (0.4.1):** on Android 10 and newer, lists are written to `Documents/Cindrix/inbox/inventory/` through MediaStore, which needs no permission and no picker. Choosing a folder in Settings is an optional override. Older phones (Android 8 and 9) still need a folder chosen.
 - **Signing:** a stable keystore is committed so builds install over each other. It is public. Real release secrets can replace it without code changes.
 
 ## 9. Open questions

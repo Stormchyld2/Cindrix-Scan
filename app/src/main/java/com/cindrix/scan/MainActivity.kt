@@ -90,9 +90,12 @@ fun App(state: AppState) {
 
     fun deliver(name: String): Boolean {
         val folder = state.folderUri
-        val text = state.outboxStore.read(name)
-        if (folder == null || text == null) return false
-        val result = Exporter.saveToFolder(context, Uri.parse(folder), name, text)
+        val text = state.outboxStore.read(name) ?: return false
+        val result = when {
+            folder != null -> Exporter.saveToFolder(context, Uri.parse(folder), name, text)
+            Exporter.canUseDefaultFolder() -> Exporter.saveToDefault(context, name, text)
+            else -> return false
+        }
         return if (result.isSuccess) {
             state.delivered(name)
             true
@@ -107,13 +110,13 @@ fun App(state: AppState) {
         val queued = state.queueBatch()
         if (queued == null && state.outbox.isEmpty()) {
             toast("Nothing to send")
-        } else if (state.folderUri == null) {
+        } else if (state.folderUri == null && !Exporter.canUseDefaultFolder()) {
             toast("Saved in the outbox. Choose the Ops folder, then tap TO OPS FOLDER.")
             pickFolder.launch(null)
         } else {
             val waiting = state.outbox.toList()
             val ok = waiting.count { deliver(it) }
-            if (ok > 0) toast("Delivered " + ok + (if (ok == 1) " list" else " lists") + " to the Ops folder")
+            if (ok > 0) toast("Delivered " + ok + (if (ok == 1) " list" else " lists") + " to " + (if (state.folderUri == null) Exporter.DEFAULT_PATH else "the Ops folder"))
         }
     }
 
@@ -136,7 +139,7 @@ fun App(state: AppState) {
                 onSend = doSend,
                 onClear = { confirmClear = true },
                 onDeliver = { name ->
-                    if (state.folderUri == null) {
+                    if (state.folderUri == null && !Exporter.canUseDefaultFolder()) {
                         toast("Choose the Ops folder first")
                         pickFolder.launch(null)
                     } else if (deliver(name)) {
