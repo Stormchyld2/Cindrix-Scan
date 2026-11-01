@@ -163,6 +163,13 @@ fun App(state: AppState) {
                     toast(if (merged) "Added to the matching line" else "Added " + item.name)
                     backToScan()
                 },
+                onQuickAddMore = { item ->
+                    // Same product, a different use-by date (for example a case with two date codes).
+                    state.addOrMerge(item)
+                    state.remember(item)
+                    toast("Added " + InventoryCsv.qtyText(item.qty) + " x " + item.name + ". Next date:")
+                    screen = Screen.Scan(quick = item.copy(scanId = java.util.UUID.randomUUID().toString(), qty = 1.0))
+                },
                 onQuickEdit = { item ->
                     screen = Screen.Form(item, isNew = true, known = true, fromScan = true)
                 },

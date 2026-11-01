@@ -195,6 +195,7 @@ fun ScanScreen(
     quick: BatchItem?,
     quickStartUseBy: String,
     onQuickAdd: (BatchItem) -> Unit,
+    onQuickAddMore: (BatchItem) -> Unit,
     onQuickEdit: (BatchItem) -> Unit,
     onQuickCancel: () -> Unit,
 ) {
@@ -281,6 +282,7 @@ fun ScanScreen(
             item = quick,
             startUseBy = quickStartUseBy,
             onAdd = onQuickAdd,
+            onAddMore = onQuickAddMore,
             onEditAll = onQuickEdit,
             onCancel = onQuickCancel,
         )
@@ -293,6 +295,7 @@ fun QuickAddDialog(
     item: BatchItem,
     startUseBy: String,
     onAdd: (BatchItem) -> Unit,
+    onAddMore: (BatchItem) -> Unit,
     onEditAll: (BatchItem) -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -346,6 +349,9 @@ fun QuickAddDialog(
                     FilterChip(selected = false, onClick = { useBy = today.plusYears(2).toString() }, label = { Text("+2 yr") })
                     FilterChip(selected = false, onClick = { useBy = today.plusYears(5).toString() }, label = { Text("+5 yr") })
                     FilterChip(selected = false, onClick = { picking = true }, label = { Text("Pick date") })
+                }
+                TextButton(onClick = { onAddMore(item.copy(qty = qty ?: 1.0, useBy = useBy)) }, enabled = valid) {
+                    Text("ADD, THEN ANOTHER USE-BY DATE")
                 }
                 TextButton(onClick = { onEditAll(item.copy(qty = qty ?: 1.0, useBy = useBy)) }) {
                     Text("EDIT ALL DETAILS")
