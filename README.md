@@ -29,7 +29,7 @@ Typing a whole pantry into an inventory by hand is slow. Scan turns it into: poi
 
 ## Get the APK
 
-Every push to `main` builds the app in GitHub Actions. Open the latest run on the Actions tab and download the `app-scan-apk` artifact. It is a zip with one file in it, `app-scan-<version>-release.apk`. Install that on the phone.
+Every push to `main` builds the app in GitHub Actions. Open the latest run on the Actions tab and download the `CindrixScan-android` artifact. It is a zip with one file in it, `CindrixScan-<version>-android.apk`. Install that on the phone.
 
 Builds are signed with the keystore in `app/`, so each new build installs over the last one. That key is public and is only there to keep updates working. To sign with your own private key instead, add these repository secrets and the workflow uses them automatically: `SCAN_KEYSTORE_B64`, `SCAN_KEYSTORE_PASSWORD`, `SCAN_KEY_ALIAS`, `SCAN_KEY_PASSWORD`.
 

@@ -43,10 +43,10 @@ jobs:
         run: |
           VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk "dist/app-scan-${VERSION}-release.apk"
+          cp app/build/outputs/apk/release/app-release.apk "dist/CindrixScan-${VERSION}-android.apk"
           ls -la dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: app-scan-apk
+          name: CindrixScan-android
           path: dist/*.apk
