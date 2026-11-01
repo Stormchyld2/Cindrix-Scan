@@ -38,7 +38,7 @@ class AppState(private val store: Store) {
         store.folderUri = uri
     }
 
-    fun setLastLocation(value: String) {
+    fun rememberLocation(value: String) {
         lastLocation = value
         store.lastLocation = value
     }

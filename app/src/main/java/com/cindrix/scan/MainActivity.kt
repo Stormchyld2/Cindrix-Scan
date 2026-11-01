@@ -153,7 +153,7 @@ fun App(state: AppState) {
                         state.update(current.item, item)
                     }
                     state.remember(item)
-                    state.setLastLocation(item.location)
+                    state.rememberLocation(item.location)
                     screen = if (current.fromScan) Screen.Scan else Screen.Home
                 },
                 onDelete = if (current.isNew) null else ({
