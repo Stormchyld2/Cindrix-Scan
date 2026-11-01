@@ -1,0 +1,120 @@
+package com.cindrix.scan
+
+import android.content.SharedPreferences
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+
+/**
+ * Keeps the batch and the catalog as plain JSON files in the app's private storage,
+ * so nothing is lost if the app is closed or the battery dies.
+ */
+class Store(private val dir: File, private val prefs: SharedPreferences) {
+
+    var callsign: String
+        get() {
+            val saved = prefs.getString("callsign", null)
+            if (saved != null) return saved
+            val fresh = Callsign.generate()
+            prefs.edit().putString("callsign", fresh).apply()
+            return fresh
+        }
+        set(value) {
+            prefs.edit().putString("callsign", value).apply()
+        }
+
+    var folderUri: String?
+        get() = prefs.getString("folder_uri", null)
+        set(value) {
+            prefs.edit().putString("folder_uri", value).apply()
+        }
+
+    var lastLocation: String
+        get() = prefs.getString("last_location", "") ?: ""
+        set(value) {
+            prefs.edit().putString("last_location", value).apply()
+        }
+
+    fun loadBatch(): List<BatchItem> =
+        readArray("batch.json").mapNotNull { obj -> runCatching { itemFromJson(obj) }.getOrNull() }
+
+    fun saveBatch(items: List<BatchItem>) {
+        writeArray("batch.json", items.map { itemToJson(it) })
+    }
+
+    fun loadCatalog(): Map<String, CatalogEntry> {
+        val out = LinkedHashMap<String, CatalogEntry>()
+        for (obj in readArray("catalog.json")) {
+            runCatching {
+                val entry = CatalogEntry(
+                    barcode = obj.getString("barcode"),
+                    name = obj.getString("name"),
+                    category = obj.optString("category", ""),
+                    unit = obj.optString("unit", "ea"),
+                )
+                out[entry.barcode] = entry
+            }
+        }
+        return out
+    }
+
+    fun saveCatalog(catalog: Map<String, CatalogEntry>) {
+        writeArray("catalog.json", catalog.values.map { e ->
+            JSONObject()
+                .put("barcode", e.barcode)
+                .put("name", e.name)
+                .put("category", e.category)
+                .put("unit", e.unit)
+        })
+    }
+
+    private fun readArray(name: String): List<JSONObject> {
+        val file = File(dir, name)
+        if (!file.exists()) return emptyList()
+        return try {
+            val arr = JSONArray(file.readText())
+            (0 until arr.length()).map { arr.getJSONObject(it) }
+        } catch (e: Exception) {
+            // Keep the unreadable file instead of overwriting it.
+            file.renameTo(File(dir, "$name.corrupt"))
+            emptyList()
+        }
+    }
+
+    private fun writeArray(name: String, items: List<JSONObject>) {
+        val arr = JSONArray()
+        items.forEach { arr.put(it) }
+        val tmp = File(dir, "$name.tmp")
+        tmp.writeText(arr.toString(2))
+        val dest = File(dir, name)
+        if (!tmp.renameTo(dest)) {
+            dest.writeText(tmp.readText())
+            tmp.delete()
+        }
+    }
+
+    private fun itemToJson(i: BatchItem): JSONObject =
+        JSONObject()
+            .put("scan_id", i.scanId)
+            .put("item", i.name)
+            .put("barcode", i.barcode)
+            .put("qty", i.qty)
+            .put("unit", i.unit)
+            .put("use_by", i.useBy)
+            .put("category", i.category)
+            .put("location", i.location)
+            .put("scanned_at", i.scannedAt)
+
+    private fun itemFromJson(o: JSONObject): BatchItem =
+        BatchItem(
+            scanId = o.getString("scan_id"),
+            name = o.getString("item"),
+            barcode = o.optString("barcode", ""),
+            qty = o.getDouble("qty"),
+            unit = o.optString("unit", "ea"),
+            useBy = o.optString("use_by", ""),
+            category = o.optString("category", ""),
+            location = o.optString("location", ""),
+            scannedAt = o.optString("scanned_at", ""),
+        )
+}
