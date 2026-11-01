@@ -62,8 +62,18 @@ Each batch line carries:
 - Import a public product database into the catalog while online once. Open Food Facts is a candidate, but its licence has attribution and share-alike terms that need checking first.
 - A read-only copy of current stock exported from Ops, so Scan can show what is already on hand.
 
-## 8. Open questions
+## 8. Decided while building (2026-11-01)
+
+- **Framework:** native Kotlin with Jetpack Compose, CameraX and ZXing. Small, no Flutter, no Google Play services.
+- **Sending:** Scan does not contain transfer code. "Send" opens the Android share sheet, and AirLink (or any other app) takes the file from there.
+- **Saving:** "Save to folder" writes into an `inventory/` folder inside the Cindrix folder the person picks once.
+- **Units:** a fixed list (ea, can, jar, bottle, bag, box, pack, lb, oz, kg, g, L, gal).
+- **Categories:** a fixed starter list (Food, Water, Medical, Hygiene, Fuel, Tools, Power, Other). These need matching to the categories Ops uses.
+- **Duplicates:** scanning the same barcode with the same unit, use-by date and location adds to the existing line.
+- **Signing:** a stable keystore is committed so builds install over each other. It is public. Real release secrets can replace it without code changes.
+
+## 9. Open questions
 
 1. How should Ops treat a re-import when the quantity has since changed (add, replace, or ask)?
-2. Which units are fixed and which can be typed?
-3. Framework choice, and whether Scan reuses AirLink's transfer code or just hands the file to the AirLink app.
+2. Match Scan's categories to the ones Cindrix Ops uses.
+3. Does the first version read barcodes well in dim pantries and on curved cans? Needs testing on the Note10 and Note20.
