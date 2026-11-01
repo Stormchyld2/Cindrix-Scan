@@ -9,7 +9,7 @@ import java.io.File
  * Keeps the batch and the catalog as plain JSON files in the app's private storage,
  * so nothing is lost if the app is closed or the battery dies.
  */
-class Store(private val dir: File, private val prefs: SharedPreferences) {
+class Store(val dir: File, private val prefs: SharedPreferences) {
 
     var callsign: String
         get() {
@@ -124,6 +124,7 @@ class Store(private val dir: File, private val prefs: SharedPreferences) {
             .put("category", i.category)
             .put("location", i.location)
             .put("scanned_at", i.scannedAt)
+            .put("remove", i.remove)
 
     private fun itemFromJson(o: JSONObject): BatchItem =
         BatchItem(
@@ -136,5 +137,6 @@ class Store(private val dir: File, private val prefs: SharedPreferences) {
             category = o.optString("category", ""),
             location = o.optString("location", ""),
             scannedAt = o.optString("scanned_at", ""),
+            remove = o.optBoolean("remove", false),
         )
 }

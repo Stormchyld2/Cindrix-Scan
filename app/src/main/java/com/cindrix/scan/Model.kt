@@ -21,6 +21,8 @@ data class BatchItem(
     val category: String,
     val location: String,
     val scannedAt: String,
+    /** True when this line takes stock out instead of adding it. */
+    val remove: Boolean = false,
 )
 
 object Units {

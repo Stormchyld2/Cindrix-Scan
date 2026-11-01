@@ -2,6 +2,7 @@ package com.cindrix.scan
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -42,6 +43,9 @@ fun CindrixTheme(content: @Composable () -> Unit) {
             outline = Color(0xFF4A5159),
             error = Danger,
         ),
-        content = content,
+        content = {
+            // Without this, text outside a card falls back to black on the dark background.
+            Surface(color = Charcoal, contentColor = Bone) { content() }
+        },
     )
 }

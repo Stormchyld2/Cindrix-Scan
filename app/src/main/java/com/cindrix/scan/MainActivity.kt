@@ -60,7 +60,6 @@ class MainActivity : ComponentActivity() {
 fun App(state: AppState) {
     val context = LocalContext.current
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
-    var savedMessage by remember { mutableStateOf<String?>(null) }
     var confirmClear by remember { mutableStateOf(false) }
 
     fun toast(text: String) {
@@ -89,28 +88,32 @@ fun App(state: AppState) {
         }
     }
 
-    val doSave: () -> Unit = {
+    fun deliver(name: String): Boolean {
         val folder = state.folderUri
-        if (folder == null) {
-            toast("Choose your Cindrix folder first, then tap Save again")
-            pickFolder.launch(null)
+        val text = state.outboxStore.read(name)
+        if (folder == null || text == null) return false
+        val result = Exporter.saveToFolder(context, Uri.parse(folder), name, text)
+        return if (result.isSuccess) {
+            state.delivered(name)
+            true
         } else {
-            val file = state.exportFile()
-            val result = Exporter.saveToFolder(context, Uri.parse(folder), file.first, file.second)
-            if (result.isSuccess) {
-                savedMessage = "Saved " + state.batch.size + " items to inventory/" + (result.getOrNull() ?: file.first) +
-                    ". Clear the batch now?"
-            } else {
-                toast("Could not save: " + (result.exceptionOrNull()?.message ?: "unknown error"))
-            }
+            toast("Could not deliver: " + (result.exceptionOrNull()?.message ?: "unknown error"))
+            false
         }
     }
 
+    // SEND TO OPS: keep the list safe in the outbox first, then deliver whatever is waiting.
     val doSend: () -> Unit = {
-        val file = state.exportFile()
-        val result = Exporter.share(context, file.first, file.second)
-        if (result.isFailure) {
-            toast("Could not send: " + (result.exceptionOrNull()?.message ?: "unknown error"))
+        val queued = state.queueBatch()
+        if (queued == null && state.outbox.isEmpty()) {
+            toast("Nothing to send")
+        } else if (state.folderUri == null) {
+            toast("Saved in the outbox. Choose the Ops folder, then tap TO OPS FOLDER.")
+            pickFolder.launch(null)
+        } else {
+            val waiting = state.outbox.toList()
+            val ok = waiting.count { deliver(it) }
+            if (ok > 0) toast("Delivered " + ok + (if (ok == 1) " list" else " lists") + " to the Ops folder")
         }
     }
 
@@ -130,9 +133,24 @@ fun App(state: AppState) {
                 },
                 onEdit = { item -> screen = Screen.Form(item, isNew = false, known = false, fromScan = false) },
                 onSettings = { screen = Screen.Settings },
-                onSave = doSave,
                 onSend = doSend,
                 onClear = { confirmClear = true },
+                onDeliver = { name ->
+                    if (state.folderUri == null) {
+                        toast("Choose the Ops folder first")
+                        pickFolder.launch(null)
+                    } else if (deliver(name)) {
+                        toast("Delivered to the Ops folder")
+                    }
+                },
+                onAirLink = { name ->
+                    val text = state.outboxStore.read(name)
+                    if (text != null) {
+                        val r = Exporter.share(context, name, text)
+                        if (r.isFailure) toast("Could not send: " + (r.exceptionOrNull()?.message ?: "unknown error"))
+                    }
+                },
+                onDiscard = { name -> state.discard(name) },
             )
 
             is Screen.Scan -> ScanScreen(
@@ -141,7 +159,7 @@ fun App(state: AppState) {
                     if (now is Screen.Scan && now.quick == null && System.currentTimeMillis() >= ignoreUntil[0]) {
                         Feedback.scanOk(context, state.soundOn, state.vibrateOn)
                         val made = state.newItem(code)
-                        if (made.second && state.fastMode) {
+                        if (made.second) {
                             screen = Screen.Scan(quick = made.first)
                         } else {
                             screen = Screen.Form(made.first, isNew = true, known = made.second, fromScan = true)
@@ -156,11 +174,11 @@ fun App(state: AppState) {
                 fastMode = state.fastMode,
                 onToggleFast = { state.updateFastMode(!state.fastMode) },
                 quick = current.quick,
-                quickStartUseBy = current.quick?.let { state.lookup(it.barcode)?.lastUseBy } ?: "",
+                quickStartUseBy = if (state.fastMode) (current.quick?.let { state.lookup(it.barcode)?.lastUseBy } ?: "") else "",
                 onQuickAdd = { item ->
                     val merged = state.addOrMerge(item)
-                    state.remember(item)
-                    toast(if (merged) "Added to the matching line" else "Added " + item.name)
+                    if (!item.remove) state.remember(item)
+                    toast(if (item.remove) "Taking out " + InventoryCsv.qtyText(item.qty) + " x " + item.name else if (merged) "Added to the matching line" else "Added " + item.name)
                     backToScan()
                 },
                 onQuickAddMore = { item ->
@@ -204,24 +222,6 @@ fun App(state: AppState) {
                 onBack = { screen = Screen.Home },
             )
         }
-    }
-
-    val message = savedMessage
-    if (message != null) {
-        AlertDialog(
-            onDismissRequest = { savedMessage = null },
-            title = { Text("Saved") },
-            text = { Text(message) },
-            confirmButton = {
-                TextButton(onClick = {
-                    state.clear()
-                    savedMessage = null
-                }) { Text("CLEAR BATCH") }
-            },
-            dismissButton = {
-                TextButton(onClick = { savedMessage = null }) { Text("KEEP IT") }
-            },
-        )
     }
 
     if (confirmClear) {

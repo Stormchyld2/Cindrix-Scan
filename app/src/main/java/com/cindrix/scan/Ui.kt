@@ -125,9 +125,11 @@ fun HomeScreen(
     onManual: () -> Unit,
     onEdit: (BatchItem) -> Unit,
     onSettings: () -> Unit,
-    onSave: () -> Unit,
     onSend: () -> Unit,
     onClear: () -> Unit,
+    onDeliver: (String) -> Unit,
+    onAirLink: (String) -> Unit,
+    onDiscard: (String) -> Unit,
 ) {
     val hasItems = state.batch.isNotEmpty()
     Column(Modifier.fillMaxSize().padding(16.dp)) {
@@ -159,10 +161,26 @@ fun HomeScreen(
             }
         }
         Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Btn("SAVE TO FOLDER", onSave, Modifier.weight(1f), enabled = hasItems)
-            Btn("SEND", onSend, Modifier.weight(1f), enabled = hasItems, outlined = true)
+        if (state.outbox.isNotEmpty()) {
+            SectionLabel("WAITING TO REACH OPS (" + state.outbox.size + ")")
+            state.outbox.forEach { name ->
+                Column(
+                    Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(10.dp)
+                ) {
+                    Text(name, fontSize = 12.sp, color = Bone)
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = { onDeliver(name) }) { Text("TO OPS FOLDER") }
+                        TextButton(onClick = { onAirLink(name) }) { Text("AIRLINK") }
+                        TextButton(onClick = { onDiscard(name) }) { Text("DELETE", color = Danger) }
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
         }
+        Btn("SEND TO OPS", onSend, Modifier.fillMaxWidth(), enabled = hasItems)
         TextButton(onClick = onClear, enabled = hasItems, modifier = Modifier.align(Alignment.End)) {
             Text("CLEAR BATCH", fontFamily = HeadingFont)
         }
@@ -179,14 +197,19 @@ fun ItemRow(item: BatchItem, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(12.dp)
     ) {
-        Text(item.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text(
+            (if (item.remove) "TAKE OUT  " else "") + item.name,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            color = if (item.remove) Danger else Bone,
+        )
         val bits = listOfNotNull(
-            InventoryCsv.qtyText(item.qty) + " " + item.unit,
+            (if (item.remove) "-" else "") + InventoryCsv.qtyText(item.qty) + " " + item.unit,
             if (item.useBy.isNotEmpty()) "use by " + item.useBy else null,
             if (item.category.isNotEmpty()) item.category else null,
             if (item.location.isNotEmpty()) item.location else null,
         )
-        Text(bits.joinToString("  |  "), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(bits.joinToString("  |  "), fontSize = 13.sp, color = Bone.copy(alpha = 0.8f))
     }
 }
 
@@ -309,6 +332,7 @@ fun QuickAddDialog(
     var qtyText by remember(item.scanId) { mutableStateOf("1") }
     var useBy by remember(item.scanId) { mutableStateOf(startUseBy) }
     var picking by remember(item.scanId) { mutableStateOf(false) }
+    var removing by remember(item.scanId) { mutableStateOf(item.remove) }
 
     val qty: Double? = qtyText.toDoubleOrNull()
     val valid = qty != null && qty > 0.0
@@ -319,6 +343,10 @@ fun QuickAddDialog(
         title = { Text(item.name) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = !removing, onClick = { removing = false }, label = { Text("ADD STOCK") })
+                    FilterChip(selected = removing, onClick = { removing = true }, label = { Text("TAKE OUT") })
+                }
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -341,8 +369,8 @@ fun QuickAddDialog(
                         qtyText = InventoryCsv.qtyText(current + 1.0)
                     }, Modifier.width(56.dp), outlined = true)
                 }
-                SectionLabel("USE BY: " + if (useBy.isEmpty()) "none" else useBy)
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!removing) SectionLabel("USE BY: " + if (useBy.isEmpty()) "none" else useBy)
+                if (!removing) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (startUseBy.isNotEmpty()) {
                         FilterChip(
                             selected = useBy == startUseBy,
@@ -357,17 +385,23 @@ fun QuickAddDialog(
                     FilterChip(selected = false, onClick = { useBy = today.plusYears(5).toString() }, label = { Text("+5 yr") })
                     FilterChip(selected = false, onClick = { picking = true }, label = { Text("Pick date") })
                 }
-                TextButton(onClick = { onAddMore(item.copy(qty = qty ?: 1.0, useBy = useBy)) }, enabled = valid) {
+                if (!removing) TextButton(onClick = { onAddMore(item.copy(qty = qty ?: 1.0, useBy = useBy)) }, enabled = valid) {
                     Text("ADD, THEN ANOTHER USE-BY DATE")
                 }
-                TextButton(onClick = { onEditAll(item.copy(qty = qty ?: 1.0, useBy = useBy)) }) {
+                if (!removing) TextButton(onClick = { onEditAll(item.copy(qty = qty ?: 1.0, useBy = useBy)) }) {
                     Text("EDIT ALL DETAILS")
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onAdd(item.copy(qty = qty ?: 1.0, useBy = useBy)) }, enabled = valid) {
-                Text("ADD")
+            TextButton(
+                onClick = {
+                    if (removing) onAdd(item.copy(qty = qty ?: 1.0, useBy = "", remove = true))
+                    else onAdd(item.copy(qty = qty ?: 1.0, useBy = useBy, remove = false))
+                },
+                enabled = valid,
+            ) {
+                Text(if (removing) "TAKE OUT" else "ADD")
             }
         },
         dismissButton = { TextButton(onClick = onCancel) { Text("CANCEL") } },
@@ -575,7 +609,7 @@ fun SettingsScreen(state: AppState, onPickFolder: () -> Unit, onBack: () -> Unit
         SectionLabel("CINDRIX FOLDER")
         Text(folderLabel)
         Text(
-            "Pick your Cindrix folder (for example Documents/Cindrix). Scan saves its files in an inventory folder inside it.",
+            "Pick the folder Cindrix Ops reads (its user folder). Scan puts finished lists in inbox/inventory inside it. Until a folder is set, lists wait safely in the outbox.",
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

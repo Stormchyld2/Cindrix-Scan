@@ -9,10 +9,10 @@ import java.time.format.DateTimeFormatter
  * Plain CSV, UTF-8, LF line endings, first line is a version marker.
  */
 object InventoryCsv {
-    const val MARKER = "#cindrix-inventory-import v1"
+    const val MARKER = "#cindrix-inventory-import v2"
 
     val COLUMNS = listOf(
-        "scan_id", "item", "barcode", "qty", "unit",
+        "scan_id", "action", "item", "barcode", "qty", "unit",
         "use_by", "category", "location", "scanned_at", "source",
     )
 
@@ -31,7 +31,7 @@ object InventoryCsv {
         sb.append(COLUMNS.joinToString(",")).append('\n')
         for (i in items) {
             val row = listOf(
-                i.scanId, i.name, i.barcode, qtyText(i.qty), i.unit,
+                i.scanId, if (i.remove) "remove" else "add", i.name, i.barcode, qtyText(i.qty), i.unit,
                 i.useBy, i.category, i.location, i.scannedAt, source,
             )
             sb.append(row.joinToString(",") { escape(it) }).append('\n')

@@ -33,7 +33,12 @@ class AppState(private val store: Store) {
     var vibrateOn by mutableStateOf(store.vibrateOn)
         private set
 
+    /** Files saved and waiting to be delivered, oldest first. */
+    val outbox = mutableStateListOf<String>()
+    val outboxStore = Outbox(store.dir)
+
     init {
+        outbox.addAll(outboxStore.list())
         batch.addAll(store.loadBatch())
         catalog.putAll(store.loadCatalog())
     }
@@ -87,6 +92,7 @@ class AppState(private val store: Store) {
             batch.indexOfFirst {
                 it.barcode == item.barcode &&
                     it.unit == item.unit &&
+                    it.remove == item.remove &&
                     it.useBy == item.useBy &&
                     it.location == item.location
             }
@@ -142,6 +148,29 @@ class AppState(private val store: Store) {
         val name = InventoryCsv.fileName(source(), Instant.now())
         val text = InventoryCsv.build(batch.toList(), source())
         return Pair(name, text)
+    }
+
+    /** Saves the batch as a file in the outbox, empties the batch, and returns the file name. */
+    fun queueBatch(): String? {
+        if (batch.isEmpty()) return null
+        val file = exportFile()
+        if (!outboxStore.add(file.first, file.second)) return null
+        clear()
+        outbox.clear()
+        outbox.addAll(outboxStore.list())
+        return file.first
+    }
+
+    fun delivered(name: String) {
+        outboxStore.markDelivered(name)
+        outbox.clear()
+        outbox.addAll(outboxStore.list())
+    }
+
+    fun discard(name: String) {
+        outboxStore.delete(name)
+        outbox.clear()
+        outbox.addAll(outboxStore.list())
     }
 
     private fun persist() {

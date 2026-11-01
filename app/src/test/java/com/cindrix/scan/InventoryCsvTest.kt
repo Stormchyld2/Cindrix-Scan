@@ -22,20 +22,26 @@ class InventoryCsvTest {
     @Test
     fun startsWithMarkerAndHeader() {
         val lines = InventoryCsv.build(emptyList(), "Falcon-27").lines()
-        assertEquals("#cindrix-inventory-import v1", lines[0])
-        assertEquals("scan_id,item,barcode,qty,unit,use_by,category,location,scanned_at,source", lines[1])
+        assertEquals("#cindrix-inventory-import v2", lines[0])
+        assertEquals("scan_id,action,item,barcode,qty,unit,use_by,category,location,scanned_at,source", lines[1])
     }
 
     @Test
     fun writesOneRowPerItem() {
         val lines = InventoryCsv.build(listOf(item()), "Falcon-27").lines()
-        assertEquals("id-1,Beans,012345678905,2,can,2027-05-01,Food,Pantry,2026-11-01T15:04:05Z,Falcon-27", lines[2])
+        assertEquals("id-1,add,Beans,012345678905,2,can,2027-05-01,Food,Pantry,2026-11-01T15:04:05Z,Falcon-27", lines[2])
     }
 
     @Test
     fun quotesCommasAndQuotes() {
         val lines = InventoryCsv.build(listOf(item(name = "Soup, \"tomato\"")), "Falcon-27").lines()
-        assertTrue(lines[2].startsWith("id-1,\"Soup, \"\"tomato\"\"\",012345678905,"))
+        assertTrue(lines[2].startsWith("id-1,add,\"Soup, \"\"tomato\"\"\",012345678905,"))
+    }
+
+    @Test
+    fun removeLinesSayRemove() {
+        val lines = InventoryCsv.build(listOf(item().copy(remove = true, useBy = "")), "Falcon-27").lines()
+        assertEquals("id-1,remove,Beans,012345678905,2,can,,Food,Pantry,2026-11-01T15:04:05Z,Falcon-27", lines[2])
     }
 
     @Test
