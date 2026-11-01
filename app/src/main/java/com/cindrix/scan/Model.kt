@@ -6,6 +6,8 @@ data class CatalogEntry(
     val name: String,
     val category: String,
     val unit: String,
+    /** The use-by date typed last time, offered again in fast mode. */
+    val lastUseBy: String = "",
 )
 
 /** One line in the batch that will be exported for Cindrix Ops. */

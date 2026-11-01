@@ -31,7 +31,8 @@ import androidx.compose.ui.platform.LocalContext
 /** Which screen is showing. */
 sealed class Screen {
     object Home : Screen()
-    object Scan : Screen()
+    /** The camera. [quick] is set while the fast-mode popup is open over it. */
+    data class Scan(val quick: BatchItem? = null) : Screen()
     object Settings : Screen()
     data class Form(val item: BatchItem, val isNew: Boolean, val known: Boolean, val fromScan: Boolean) : Screen()
 }
@@ -64,6 +65,13 @@ fun App(state: AppState) {
 
     fun toast(text: String) {
         Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+    }
+
+    // After an item is added, ignore the same can still sitting in front of the camera.
+    val ignoreUntil = remember { LongArray(1) }
+    fun backToScan() {
+        ignoreUntil[0] = System.currentTimeMillis() + 2000
+        screen = Screen.Scan()
     }
 
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
@@ -115,7 +123,7 @@ fun App(state: AppState) {
         when (val current = screen) {
             Screen.Home -> HomeScreen(
                 state = state,
-                onScan = { screen = Screen.Scan },
+                onScan = { screen = Screen.Scan() },
                 onManual = {
                     val made = state.newItem("")
                     screen = Screen.Form(made.first, isNew = true, known = false, fromScan = false)
@@ -127,11 +135,17 @@ fun App(state: AppState) {
                 onClear = { confirmClear = true },
             )
 
-            Screen.Scan -> ScanScreen(
+            is Screen.Scan -> ScanScreen(
                 onCode = { code ->
-                    if (screen is Screen.Scan) {
+                    val now = screen
+                    if (now is Screen.Scan && now.quick == null && System.currentTimeMillis() >= ignoreUntil[0]) {
+                        Feedback.scanOk(context, state.soundOn, state.vibrateOn)
                         val made = state.newItem(code)
-                        screen = Screen.Form(made.first, isNew = true, known = made.second, fromScan = true)
+                        if (made.second && state.fastMode) {
+                            screen = Screen.Scan(quick = made.first)
+                        } else {
+                            screen = Screen.Form(made.first, isNew = true, known = made.second, fromScan = true)
+                        }
                     }
                 },
                 onManual = {
@@ -139,6 +153,20 @@ fun App(state: AppState) {
                     screen = Screen.Form(made.first, isNew = true, known = false, fromScan = true)
                 },
                 onDone = { screen = Screen.Home },
+                fastMode = state.fastMode,
+                onToggleFast = { state.updateFastMode(!state.fastMode) },
+                quick = current.quick,
+                quickStartUseBy = current.quick?.let { state.lookup(it.barcode)?.lastUseBy } ?: "",
+                onQuickAdd = { item ->
+                    val merged = state.addOrMerge(item)
+                    state.remember(item)
+                    toast(if (merged) "Added to the matching line" else "Added " + item.name)
+                    backToScan()
+                },
+                onQuickEdit = { item ->
+                    screen = Screen.Form(item, isNew = true, known = true, fromScan = true)
+                },
+                onQuickCancel = { backToScan() },
             )
 
             is Screen.Form -> FormScreen(
@@ -154,13 +182,13 @@ fun App(state: AppState) {
                     }
                     state.remember(item)
                     state.rememberLocation(item.location)
-                    screen = if (current.fromScan) Screen.Scan else Screen.Home
+                    if (current.fromScan) backToScan() else screen = Screen.Home
                 },
                 onDelete = if (current.isNew) null else ({
                     state.remove(current.item)
                     screen = Screen.Home
                 }),
-                onCancel = { screen = if (current.fromScan) Screen.Scan else Screen.Home },
+                onCancel = { if (current.fromScan) backToScan() else screen = Screen.Home },
             )
 
             Screen.Settings -> SettingsScreen(

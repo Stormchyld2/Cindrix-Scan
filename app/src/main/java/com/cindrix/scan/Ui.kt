@@ -26,6 +26,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -34,6 +35,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -184,7 +186,18 @@ fun ItemRow(item: BatchItem, onClick: () -> Unit) {
 // ---------------------------------------------------------------- scan
 
 @Composable
-fun ScanScreen(onCode: (String) -> Unit, onManual: () -> Unit, onDone: () -> Unit) {
+fun ScanScreen(
+    onCode: (String) -> Unit,
+    onManual: () -> Unit,
+    onDone: () -> Unit,
+    fastMode: Boolean,
+    onToggleFast: () -> Unit,
+    quick: BatchItem?,
+    quickStartUseBy: String,
+    onQuickAdd: (BatchItem) -> Unit,
+    onQuickEdit: (BatchItem) -> Unit,
+    onQuickCancel: () -> Unit,
+) {
     BackHandler(onBack = onDone)
     val context = LocalContext.current
     var granted by remember {
@@ -232,7 +245,7 @@ fun ScanScreen(onCode: (String) -> Unit, onManual: () -> Unit, onDone: () -> Uni
                 .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
         )
         Text(
-            "Line the barcode up inside the box",
+            if (fastMode) "Fast mode: known items only ask quantity and use-by" else "Line the barcode up inside the box",
             color = Color.White,
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -241,16 +254,114 @@ fun ScanScreen(onCode: (String) -> Unit, onManual: () -> Unit, onDone: () -> Uni
                 .background(Color(0x99000000))
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         )
-        Row(
+        Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Btn("DONE", onDone, Modifier.weight(1f))
-            Btn("BY HAND", onManual, Modifier.weight(1f), outlined = true)
-            if (hasTorch) {
-                Btn(if (torch) "LIGHT ON" else "LIGHT", { torch = !torch }, Modifier.weight(1f), outlined = true)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Btn("DONE", onDone, Modifier.weight(1f))
+                Btn("BY HAND", onManual, Modifier.weight(1f), outlined = true)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Btn(
+                    if (fastMode) "FAST MODE: ON" else "FAST MODE: OFF",
+                    onToggleFast,
+                    Modifier.weight(1f),
+                    outlined = !fastMode,
+                )
+                if (hasTorch) {
+                    Btn(if (torch) "LIGHT ON" else "LIGHT", { torch = !torch }, Modifier.weight(1f), outlined = true)
+                }
             }
         }
+    }
+
+    if (quick != null) {
+        QuickAddDialog(
+            item = quick,
+            startUseBy = quickStartUseBy,
+            onAdd = onQuickAdd,
+            onEditAll = onQuickEdit,
+            onCancel = onQuickCancel,
+        )
+    }
+}
+
+/** Fast mode popup for an item the app already knows: quantity and use-by date, nothing else. */
+@Composable
+fun QuickAddDialog(
+    item: BatchItem,
+    startUseBy: String,
+    onAdd: (BatchItem) -> Unit,
+    onEditAll: (BatchItem) -> Unit,
+    onCancel: () -> Unit,
+) {
+    var qtyText by remember(item.scanId) { mutableStateOf("1") }
+    var useBy by remember(item.scanId) { mutableStateOf(startUseBy) }
+    var picking by remember(item.scanId) { mutableStateOf(false) }
+
+    val qty: Double? = qtyText.toDoubleOrNull()
+    val valid = qty != null && qty > 0.0
+    val today = LocalDate.now()
+
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(item.name) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Btn("-", {
+                        val current = qtyText.toDoubleOrNull() ?: 0.0
+                        qtyText = InventoryCsv.qtyText(if (current > 1.0) current - 1.0 else 0.0)
+                    }, Modifier.width(56.dp), outlined = true)
+                    OutlinedTextField(
+                        value = qtyText,
+                        onValueChange = { text -> qtyText = text.filter { c -> c.isDigit() || c == '.' } },
+                        label = { Text("Qty (" + item.unit + ")") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Btn("+", {
+                        val current = qtyText.toDoubleOrNull() ?: 0.0
+                        qtyText = InventoryCsv.qtyText(current + 1.0)
+                    }, Modifier.width(56.dp), outlined = true)
+                }
+                SectionLabel("USE BY: " + if (useBy.isEmpty()) "none" else useBy)
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (startUseBy.isNotEmpty()) {
+                        FilterChip(
+                            selected = useBy == startUseBy,
+                            onClick = { useBy = startUseBy },
+                            label = { Text("Same as last") },
+                        )
+                    }
+                    FilterChip(selected = useBy.isEmpty(), onClick = { useBy = "" }, label = { Text("None") })
+                    FilterChip(selected = false, onClick = { useBy = today.plusMonths(6).toString() }, label = { Text("+6 mo") })
+                    FilterChip(selected = false, onClick = { useBy = today.plusYears(1).toString() }, label = { Text("+1 yr") })
+                    FilterChip(selected = false, onClick = { useBy = today.plusYears(2).toString() }, label = { Text("+2 yr") })
+                    FilterChip(selected = false, onClick = { useBy = today.plusYears(5).toString() }, label = { Text("+5 yr") })
+                    FilterChip(selected = false, onClick = { picking = true }, label = { Text("Pick date") })
+                }
+                TextButton(onClick = { onEditAll(item.copy(qty = qty ?: 1.0, useBy = useBy)) }) {
+                    Text("EDIT ALL DETAILS")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onAdd(item.copy(qty = qty ?: 1.0, useBy = useBy)) }, enabled = valid) {
+                Text("ADD")
+            }
+        },
+        dismissButton = { TextButton(onClick = onCancel) { Text("CANCEL") } },
+    )
+
+    if (picking) {
+        UseByPicker(onDate = { useBy = it }, onDismiss = { picking = false })
     }
 }
 
@@ -432,6 +543,21 @@ fun SettingsScreen(state: AppState, onPickFolder: () -> Unit, onBack: () -> Unit
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Btn("NEW RANDOM CALLSIGN", { state.updateCallsign(Callsign.generate()) }, Modifier.fillMaxWidth(), outlined = true)
+
+        SectionLabel("WHEN A BARCODE IS READ")
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Beep", Modifier.weight(1f))
+            Switch(checked = state.soundOn, onCheckedChange = { state.updateSound(it) })
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Vibrate", Modifier.weight(1f))
+            Switch(checked = state.vibrateOn, onCheckedChange = { state.updateVibrate(it) })
+        }
+        Text(
+            "The beep follows the phone's silent mode. Fast mode is switched on and off on the scan screen.",
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         SectionLabel("CINDRIX FOLDER")
         Text(folderLabel)

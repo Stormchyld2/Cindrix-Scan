@@ -35,6 +35,24 @@ class Store(private val dir: File, private val prefs: SharedPreferences) {
             prefs.edit().putString("last_location", value).apply()
         }
 
+    var fastMode: Boolean
+        get() = prefs.getBoolean("fast_mode", false)
+        set(value) {
+            prefs.edit().putBoolean("fast_mode", value).apply()
+        }
+
+    var soundOn: Boolean
+        get() = prefs.getBoolean("sound_on", true)
+        set(value) {
+            prefs.edit().putBoolean("sound_on", value).apply()
+        }
+
+    var vibrateOn: Boolean
+        get() = prefs.getBoolean("vibrate_on", true)
+        set(value) {
+            prefs.edit().putBoolean("vibrate_on", value).apply()
+        }
+
     fun loadBatch(): List<BatchItem> =
         readArray("batch.json").mapNotNull { obj -> runCatching { itemFromJson(obj) }.getOrNull() }
 
@@ -51,6 +69,7 @@ class Store(private val dir: File, private val prefs: SharedPreferences) {
                     name = obj.getString("name"),
                     category = obj.optString("category", ""),
                     unit = obj.optString("unit", "ea"),
+                    lastUseBy = obj.optString("last_use_by", ""),
                 )
                 out[entry.barcode] = entry
             }
@@ -65,6 +84,7 @@ class Store(private val dir: File, private val prefs: SharedPreferences) {
                 .put("name", e.name)
                 .put("category", e.category)
                 .put("unit", e.unit)
+                .put("last_use_by", e.lastUseBy)
         })
     }
 

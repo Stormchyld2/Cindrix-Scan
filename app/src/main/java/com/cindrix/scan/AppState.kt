@@ -23,6 +23,16 @@ class AppState(private val store: Store) {
     var lastLocation by mutableStateOf(store.lastLocation)
         private set
 
+    /** Fast mode: a known item asks only for quantity and use-by date. Off by default. */
+    var fastMode by mutableStateOf(store.fastMode)
+        private set
+
+    var soundOn by mutableStateOf(store.soundOn)
+        private set
+
+    var vibrateOn by mutableStateOf(store.vibrateOn)
+        private set
+
     init {
         batch.addAll(store.loadBatch())
         catalog.putAll(store.loadCatalog())
@@ -43,6 +53,21 @@ class AppState(private val store: Store) {
         store.lastLocation = value
     }
 
+    fun updateFastMode(on: Boolean) {
+        fastMode = on
+        store.fastMode = on
+    }
+
+    fun updateSound(on: Boolean) {
+        soundOn = on
+        store.soundOn = on
+    }
+
+    fun updateVibrate(on: Boolean) {
+        vibrateOn = on
+        store.vibrateOn = on
+    }
+
     fun source(): String = callsign.ifBlank { "Callsign" }
 
     fun lookup(barcode: String): CatalogEntry? = catalog[barcode]
@@ -50,7 +75,7 @@ class AppState(private val store: Store) {
     /** Remember what a barcode is, so the next scan fills in the name. */
     fun remember(item: BatchItem) {
         if (item.barcode.isEmpty()) return
-        catalog[item.barcode] = CatalogEntry(item.barcode, item.name, item.category, item.unit)
+        catalog[item.barcode] = CatalogEntry(item.barcode, item.name, item.category, item.unit, item.useBy)
         store.saveCatalog(catalog)
     }
 
