@@ -33,6 +33,7 @@ sealed class Screen {
     object Home : Screen()
     /** The camera. [quick] is set while the fast-mode popup is open over it. */
     data class Scan(val quick: BatchItem? = null) : Screen()
+    object Stock : Screen()
     object Settings : Screen()
     data class Form(val item: BatchItem, val isNew: Boolean, val known: Boolean, val fromScan: Boolean) : Screen()
 }
@@ -106,6 +107,21 @@ fun App(state: AppState) {
     }
 
     // SEND TO OPS: keep the list safe in the outbox first, then deliver whatever is waiting.
+    val pickStock = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) {
+            val text = try {
+                context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) }
+            } catch (e: Exception) {
+                null
+            }
+            if (text != null && state.loadStock(text)) {
+                toast("Stock list loaded: " + state.stock.size + " lines")
+            } else {
+                toast("That file is not a Cindrix stock list")
+            }
+        }
+    }
+
     val doSend: () -> Unit = {
         val queued = state.queueBatch()
         if (queued == null && state.outbox.isEmpty()) {
@@ -154,6 +170,7 @@ fun App(state: AppState) {
                     }
                 },
                 onDiscard = { name -> state.discard(name) },
+                onStock = { screen = Screen.Stock },
             )
 
             is Screen.Scan -> ScanScreen(
@@ -177,6 +194,7 @@ fun App(state: AppState) {
                 fastMode = state.fastMode,
                 onToggleFast = { state.updateFastMode(!state.fastMode) },
                 quick = current.quick,
+                quickOnHand = current.quick?.let { state.onHand(it.barcode) },
                 quickStartUseBy = if (state.fastMode) (current.quick?.let { state.lookup(it.barcode)?.lastUseBy } ?: "") else "",
                 onQuickAdd = { item ->
                     val merged = state.addOrMerge(item)
@@ -217,6 +235,12 @@ fun App(state: AppState) {
                     screen = Screen.Home
                 }),
                 onCancel = { if (current.fromScan) backToScan() else screen = Screen.Home },
+            )
+
+            Screen.Stock -> InStockScreen(
+                state = state,
+                onLoad = { pickStock.launch(arrayOf("text/*", "application/octet-stream", "*/*")) },
+                onBack = { screen = Screen.Home },
             )
 
             Screen.Settings -> SettingsScreen(

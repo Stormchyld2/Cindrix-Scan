@@ -130,6 +130,7 @@ fun HomeScreen(
     onDeliver: (String) -> Unit,
     onAirLink: (String) -> Unit,
     onDiscard: (String) -> Unit,
+    onStock: () -> Unit,
 ) {
     val hasItems = state.batch.isNotEmpty()
     Column(Modifier.fillMaxSize().padding(16.dp)) {
@@ -144,6 +145,8 @@ fun HomeScreen(
             Btn("SCAN", onScan, Modifier.weight(1f))
             Btn("ADD BY HAND", onManual, Modifier.weight(1f), outlined = true)
         }
+        Spacer(Modifier.height(8.dp))
+        Btn("IN STOCK (" + state.stock.size + ")", onStock, Modifier.fillMaxWidth(), outlined = true)
         Spacer(Modifier.height(12.dp))
         if (!hasItems) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -224,6 +227,7 @@ fun ScanScreen(
     onToggleFast: () -> Unit,
     quick: BatchItem?,
     quickStartUseBy: String,
+    quickOnHand: Pair<Double, String>?,
     onQuickAdd: (BatchItem) -> Unit,
     onQuickAddMore: (BatchItem) -> Unit,
     onQuickEdit: (BatchItem) -> Unit,
@@ -311,6 +315,7 @@ fun ScanScreen(
         QuickAddDialog(
             item = quick,
             startUseBy = quickStartUseBy,
+            onHand = quickOnHand,
             onAdd = onQuickAdd,
             onAddMore = onQuickAddMore,
             onEditAll = onQuickEdit,
@@ -324,6 +329,7 @@ fun ScanScreen(
 fun QuickAddDialog(
     item: BatchItem,
     startUseBy: String,
+    onHand: Pair<Double, String>?,
     onAdd: (BatchItem) -> Unit,
     onAddMore: (BatchItem) -> Unit,
     onEditAll: (BatchItem) -> Unit,
@@ -343,6 +349,14 @@ fun QuickAddDialog(
         title = { Text(item.name) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (onHand != null) {
+                    Text(
+                        "On hand: " + InventoryCsv.qtyText(onHand.first) + " " + item.unit +
+                            (if (onHand.second.isNotEmpty()) "  |  soonest use-by " + onHand.second else ""),
+                        color = Blue,
+                        fontSize = 14.sp,
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(selected = !removing, onClick = { removing = false }, label = { Text("ADD STOCK") })
                     FilterChip(selected = removing, onClick = { removing = true }, label = { Text("TAKE OUT") })
@@ -624,5 +638,53 @@ fun SettingsScreen(state: AppState, onPickFolder: () -> Unit, onBack: () -> Unit
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+
+// ---------------------------------------------------------------- in stock
+
+@Composable
+fun InStockScreen(state: AppState, onLoad: () -> Unit, onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
+    var query by remember { mutableStateOf("") }
+    val shown = StockList.search(state.stock.toList(), query).sortedBy { it.name.lowercase() }
+    val updated = state.stock.firstOrNull()?.updated ?: ""
+    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        BrandHeader("In stock")
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            label = { Text("Search name, place or category") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            if (state.stock.isEmpty()) "No stock list yet. Load the file Ops makes (outbox/stock-list.csv)."
+            else "A read-only copy from Ops" + (if (updated.isNotEmpty()) ", made " + updated.replace('T', ' ').removeSuffix("Z") + " UTC" else "") + ". Only the Ops host changes the real inventory.",
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(shown) { line ->
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surface).padding(12.dp)
+                ) {
+                    Text(line.name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Bone)
+                    Text(
+                        listOfNotNull(
+                            InventoryCsv.qtyText(line.qty) + " " + line.unit,
+                            line.location.ifEmpty { null },
+                            if (line.useBy.isNotEmpty()) "use by " + line.useBy else null,
+                        ).joinToString("  |  "),
+                        fontSize = 13.sp,
+                        color = Bone.copy(alpha = 0.8f),
+                    )
+                }
+            }
+        }
+        Btn("LOAD STOCK LIST FROM OPS", onLoad, Modifier.fillMaxWidth())
+        Btn("BACK", onBack, Modifier.fillMaxWidth(), outlined = true)
     }
 }

@@ -34,11 +34,14 @@ class AppState(private val store: Store) {
         private set
 
     /** Files saved and waiting to be delivered, oldest first. */
+    val stock = mutableStateListOf<StockLine>()
+
     val outbox = mutableStateListOf<String>()
     val outboxStore = Outbox(store.dir)
 
     init {
         outbox.addAll(outboxStore.list())
+        store.loadStockText()?.let { StockList.parse(it) }?.let { stock.addAll(it) }
         batch.addAll(store.loadBatch())
         catalog.putAll(store.loadCatalog())
     }
@@ -159,6 +162,23 @@ class AppState(private val store: Store) {
         outbox.clear()
         outbox.addAll(outboxStore.list())
         return file.first
+    }
+
+    /** Takes in a stock list file. Returns false (and keeps the old one) when it is not a stock list. */
+    fun loadStock(text: String): Boolean {
+        val parsed = StockList.parse(text) ?: return false
+        store.saveStockText(text)
+        stock.clear()
+        stock.addAll(parsed)
+        return true
+    }
+
+    /** What the stock list says is on hand, adjusted by what is in the batch that has not been sent yet. */
+    fun onHand(barcode: String): Pair<Double, String>? {
+        val base = StockList.onHand(stock, barcode)
+        val pending = batch.filter { it.barcode == barcode }.sumOf { if (it.remove) -it.qty else it.qty }
+        if (base == null) return if (pending != 0.0) Pair(pending, "") else null
+        return Pair(base.first + pending, base.second)
     }
 
     fun delivered(name: String) {

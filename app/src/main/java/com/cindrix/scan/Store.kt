@@ -53,6 +53,18 @@ class Store(val dir: File, private val prefs: SharedPreferences) {
             prefs.edit().putBoolean("vibrate_on", value).apply()
         }
 
+    fun loadStockText(): String? = try {
+        File(dir, "stock-list.csv").takeIf { it.exists() }?.readText(Charsets.UTF_8)
+    } catch (e: Exception) {
+        null
+    }
+
+    fun saveStockText(text: String) {
+        val tmp = File(dir, "stock-list.csv.tmp")
+        tmp.writeText(text, Charsets.UTF_8)
+        tmp.renameTo(File(dir, "stock-list.csv"))
+    }
+
     fun loadBatch(): List<BatchItem> =
         readArray("batch.json").mapNotNull { obj -> runCatching { itemFromJson(obj) }.getOrNull() }
 

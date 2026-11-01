@@ -8,7 +8,7 @@ A barcode scanner that adds your supplies to the Cindrix Ops inventory. Scan a c
 |---|---|
 | Android app ID | `com.cindrix.scan` |
 | Platform | Android |
-| Version | 0.4.1 |
+| Version | 0.5.0 |
 | Status | Builds and passes its tests. Not yet tested on a phone. |
 
 ## What it is

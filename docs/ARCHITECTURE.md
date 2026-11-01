@@ -79,6 +79,7 @@ Each batch line carries:
 - **File format v2:** adds an `action` column (`add` or `remove`) after `scan_id`. Ops still reads v1.
 - **Outbox:** SEND TO OPS saves the batch as a file in the app's outbox and empties the batch, so nothing is lost. Files stay there until written into the Ops folder (`inbox/inventory/` inside the folder picked in Settings). A button also hands a file to Cindrix AirLink directly when it is installed. Ops holds the file in its own inbox until the person accepts it (Ops docs/39).
 - **Automatic folder (0.4.1):** on Android 10 and newer, lists are written to `Documents/Cindrix/inbox/inventory/` through MediaStore, which needs no permission and no picker. Choosing a folder in Settings is an optional override. Older phones (Android 8 and 9) still need a folder chosen.
+- **In stock (0.5.0):** a read-only tab built from the stock list Ops publishes (`outbox/stock-list.csv`, format `#cindrix-stock-list v1`). Scan never edits it. Only the device hosting the server changes the inventory; Scan sends changes back as add/take-out files. The quick popup shows "On hand" from the list, adjusted by the batch not yet sent (files already in the outbox are not counted yet). The list is loaded with a file picker for now.
 - **Signing:** a stable keystore is committed so builds install over each other. It is public. Real release secrets can replace it without code changes.
 
 ## 9. Open questions
