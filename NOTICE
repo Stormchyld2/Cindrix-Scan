@@ -1,0 +1,7 @@
+Cindrix Scan
+
+Heading font: TeX Gyre Heros Condensed Bold, copyright GUST e-foundry, used under the
+GUST Font License. See licenses/GUST-FONT-LICENSE.txt.
+
+Barcode decoding: ZXing ("Zebra Crossing"), Apache License 2.0.
+Other libraries: AndroidX, Jetpack Compose and CameraX, Apache License 2.0.
